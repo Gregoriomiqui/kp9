@@ -1,0 +1,82 @@
+Screen {
+    background: #0b1021;
+    color: #c7d0e0;
+}
+
+#topbar {
+    height: 2;
+    padding: 0 1;
+    background: #1b2b4b;
+    color: #ffb000;
+    text-style: bold;
+}
+
+#topbar.protected {
+    background: #b00020;
+    color: #ffffff;
+}
+
+#body {
+    height: 1fr;
+}
+
+View {
+    height: 1fr;
+    padding: 0 1;
+    border: round #00b7eb;
+    border-title-color: #ffb000;
+    border-title-style: bold;
+}
+
+DataTable {
+    height: 1fr;
+}
+
+#prompt {
+    display: none;
+}
+
+#crumbs {
+    height: 1;
+    padding: 0 1;
+    background: #1b2b4b;
+    color: #00e5ff;
+}
+
+#summary, #request-def {
+    height: auto;
+    padding-bottom: 1;
+}
+
+DetailView TabbedContent {
+    height: 12;
+}
+
+ResponsePanel {
+    height: 1fr;
+    border-top: solid #00b7eb;
+}
+
+#resp-headers {
+    color: #8a9bb8;
+    padding-bottom: 1;
+}
+
+EnvsView #vars {
+    height: auto;
+    max-height: 12;
+    border-top: solid #00b7eb;
+}
+
+ConfirmScreen, NameScreen, HelpScreen {
+    align: center middle;
+}
+
+#dialog {
+    width: 80;
+    max-width: 90%;
+    height: auto;
+    padding: 1 2;
+    border: thick #ffb000;
+    background: #1b2b4b;
+}
