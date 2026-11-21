@@ -108,7 +108,7 @@ def resolve(
 ) -> ResolvedRequest:
     sub = _Substitution(merge_variables(chain, env_vars))
     try:
-        url = sub.text(request.url)
+        url = sub.text(request.url).strip()  # un espacio pegado al copiar rompe httpx
         params = {sub.text(k): sub.text(v) for k, v in request.params.items()}
         headers = {sub.text(k): sub.text(v) for k, v in request.headers.items()}
         body = Body(type=request.body.type, content=sub.value(request.body.content))

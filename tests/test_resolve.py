@@ -135,3 +135,13 @@ def test_missing_variable_inside_auth_reported():
     with pytest.raises(ResolveError) as exc:
         resolve(req(), chain(), {}, "qa")
     assert exc.value.missing == ["token"]
+
+
+def test_url_surrounding_whitespace_is_trimmed():
+    resolved = resolve(req(url="  https://httpbin.org/get \n"), [], {}, None)
+    assert resolved.url == "https://httpbin.org/get"
+
+
+def test_url_trimmed_after_variable_substitution():
+    resolved = resolve(req(url="{{base}}/get"), [], {"base": " https://h.test"}, None)
+    assert resolved.url == "https://h.test/get"
