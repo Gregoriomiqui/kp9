@@ -13,31 +13,83 @@ que no se versiona.
 - Historial navegable y re-ejecutable. Los datos sensibles se ocultan antes de guardarse.
 - Importación de colecciones y entornos de Postman v2.1.
 
-## Instalación
+## Instalación en macOS
+
+Elige una de estas opciones. En todas, después basta con escribir `kp9` en la terminal.
+
+### Opción A: binario autónomo (no requiere Python)
+
+```sh
+tar -xzf kp9-0.1.0-macos-arm64.tar.gz
+./kp9-0.1.0-macos-arm64/install.sh        # instala en ~/.local (sin sudo)
+```
+
+Si `~/.local/bin` no está en tu `PATH`, el instalador te dice qué línea agregar a `~/.zshrc`.
+El binario sirve para la arquitectura del Mac donde se construyó: `arm64` en Apple Silicon y
+`x86_64` en Intel. Para desinstalar: `rm -rf ~/.local/share/kp9 ~/.local/bin/kp9`.
+
+### Opción B: wheel con uv
 
 Necesitas [uv](https://docs.astral.sh/uv/). uv instala Python 3.11+ si no lo tienes.
+
+```sh
+uv tool install kp9-0.1.0-py3-none-any.whl
+```
+
+### Opción C: desde el código, en modo editable
 
 ```sh
 git clone <este repo> kp9 && cd kp9
 uv tool install --editable .
 ```
 
-Así queda disponible el comando `kp9`. Como es una instalación editable, los cambios al código
-se aplican la próxima vez que abras `kp9`.
+Los cambios al código se aplican la próxima vez que abras `kp9`.
+
+### Construir los paquetes
+
+```sh
+uv build                          # dist/kp9-<versión>-py3-none-any.whl y .tar.gz
+./packaging/build-macos.sh        # dist/kp9-<versión>-macos-<arch>.tar.gz (binario + install.sh)
+```
+
+`build-macos.sh` usa PyInstaller, que es una dependencia de desarrollo. Al terminar, comprueba
+que el binario arranca.
 
 ## Inicio rápido
 
 ```sh
-kp9 init mis-apis              # crea el workspace (y .gitignore con .kp9/)
-cd mis-apis
+kp9
+```
+
+Eso es todo. La primera vez se crea el workspace por defecto en `~/kp9` y se abre la app. Con
+`n` creas un grupo; con `Enter` entras en él y con `n` creas una colección, y dentro de ella un
+request. Con `e` lo editas y con `s` lo envías.
+
+Para traer tus colecciones de Postman:
+
+```sh
 kp9 import ~/Downloads/coleccion.postman_collection.json \
   --group pagos \
   --env ~/Downloads/qa.postman_environment.json
-kp9                            # abre la TUI
+kp9
 ```
 
-`kp9` busca `workspace.json` en la carpeta actual y en sus carpetas padre. Para usar otro
-workspace: `kp9 --workspace /ruta/al/workspace`.
+### Dónde se guardan los datos (workspace)
+
+`kp9` busca `workspace.json` en la carpeta actual y en sus carpetas padre. Si no encuentra
+ninguno, usa el **workspace por defecto** `~/kp9` y lo crea la primera vez. Puedes cambiar esa
+ruta con la variable de entorno `KP9_HOME`, por ejemplo `export KP9_HOME=~/apis` en
+`~/.zshrc`. Así, escribir `kp9` desde cualquier carpeta abre la app. `kp9 import` usa la misma
+regla.
+
+Para tener un workspace por proyecto, por ejemplo dentro de un repo para versionarlo con git:
+
+```sh
+cd mi-proyecto && kp9 init     # crea workspace.json y agrega .kp9/ a .gitignore
+kp9                            # dentro de esa carpeta, abre ese workspace
+```
+
+Para abrir un workspace concreto desde cualquier lugar: `kp9 --workspace /ruta/al/workspace`.
 
 ### CLI
 
@@ -232,6 +284,18 @@ guardar, kp9 oculta (`••••`):
   un resumen al final. La importación no se interrumpe.
 - Si un nombre se repite, kp9 nunca sobrescribe: crea `nombre-2.json`, `nombre-3.json`, etc.
 
+## Solución de problemas
+
+| Síntoma | Solución |
+|---|---|
+| `zsh: command not found: kp9` | Agrega `export PATH="$HOME/.local/bin:$PATH"` a `~/.zshrc` y abre una terminal nueva |
+| macOS dice que no puede verificar el desarrollador | `xattr -dr com.apple.quarantine ~/.local/share/kp9`. `install.sh` ya lo hace por ti |
+| `e` no abre el editor, o vuelve enseguida sin cambios | Define `EDITOR`, por ejemplo `export EDITOR=nvim`. Con un editor gráfico, usa la opción que lo hace esperar: `EDITOR="code -w"` |
+| `{{baseUrl}} no definida (sin entorno activo)` | Activa un entorno con `E` + `Enter` o `:env <nombre>`, o define `defaultEnv` en `workspace.json` |
+| `{{x}} no definida en qa` | Agrega la variable al entorno. Si es un secreto, pon su valor en `.kp9/secrets.json` |
+| Un archivo aparece con ⚠ | Su JSON es inválido. El mensaje indica archivo:línea:columna; `e` lo abre para corregirlo |
+| `Request URL is missing an 'http://' or 'https://' protocol` | La URL resuelta no empieza con `http://` o `https://`. Revisa la URL o el valor de `baseUrl` en el entorno. Los espacios al inicio y al final se quitan solos |
+
 ## Desarrollo
 
 ```sh
@@ -240,6 +304,10 @@ uv run pytest
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
 ```
+
+El empaquetado para macOS está en `packaging/`: `build-macos.sh`, `install.sh` y el punto de
+entrada para PyInstaller. Los artefactos quedan en `dist/` y los intermedios en `build/`; las
+dos carpetas están ignoradas por git.
 
 El código está en `src/kp9/`. El núcleo (`model`, `store`, `resolve`, `auth`, `httpclient`,
 `history`, `runner`, `importer`) no depende de la interfaz. La TUI, en `src/kp9/tui/`, es una

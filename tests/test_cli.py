@@ -73,9 +73,31 @@ def test_import_non_postman_file_fails(tmp_path):
     assert "falta 'item'" in result.output
 
 
-def test_tui_without_workspace_exits_with_message(tmp_path, monkeypatch):
+def test_tui_outside_workspace_uses_default_home(tmp_path, monkeypatch):
+    home = tmp_path / "home-kp9"
+    monkeypatch.setenv("KP9_HOME", str(home))
     monkeypatch.chdir(tmp_path)
+    launched = []
+    monkeypatch.setattr(cli, "_launch_tui", launched.append)
     result = runner.invoke(app, [])
+    assert result.exit_code == 0, result.output
+    assert launched == [home.resolve()]
+    assert json.loads((home / "workspace.json").read_text())["name"] == "kp9"
+    assert "Workspace creado" in result.output
+    # la segunda vez reutiliza el mismo workspace sin volver a crearlo
+    result = runner.invoke(app, [])
+    assert result.exit_code == 0 and "Workspace creado" not in result.output
+
+
+def test_default_home_is_tilde_kp9(tmp_path, monkeypatch):
+    monkeypatch.delenv("KP9_HOME", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert cli.default_home() == tmp_path / "kp9"
+
+
+def test_explicit_workspace_not_found_still_fails(tmp_path, monkeypatch):
+    monkeypatch.setenv("KP9_HOME", str(tmp_path / "h"))
+    result = runner.invoke(app, ["--workspace", str(tmp_path / "nope")])
     assert result.exit_code == 1
     assert "kp9 init" in result.output
 
