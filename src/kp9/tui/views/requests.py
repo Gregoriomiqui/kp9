@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from rich.text import Text
+from textual.binding import Binding
 
 from kp9.model import FolderMeta, Request
 from kp9.store import (
@@ -23,6 +24,7 @@ from kp9.tui.widgets import last_text, mark, method_text
 
 class RequestsView(TableView):
     COLUMNS = ("METHOD", "NAME", "URL", "LAST")
+    BINDINGS = [Binding("i", "form_edit", "editor")]
 
     def __init__(self, container_path: Path) -> None:
         super().__init__()
@@ -98,3 +100,10 @@ class RequestsView(TableView):
             self.kp9.push_view(RequestsView(target.path))
         elif isinstance(target, RequestNode):
             self.kp9.push_view(DetailView(target.path))
+
+    def action_form_edit(self) -> None:
+        row = self.selected()
+        if row is None or not isinstance(row.target, RequestNode):
+            self.kp9.notify("selecciona un request para editarlo", severity="warning")
+            return
+        self.kp9.open_request_editor(row.target.path)

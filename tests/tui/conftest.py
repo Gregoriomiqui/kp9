@@ -3,7 +3,19 @@ import pytest
 
 from kp9.tui.app import Kp9App
 
-KEYS = {" ": "space", ":": "colon", "/": "slash", "-": "minus", ".": "full_stop", "_": "underscore"}
+KEYS = {
+    " ": "space",
+    ":": "colon",
+    "/": "slash",
+    "-": "minus",
+    ".": "full_stop",
+    "_": "underscore",
+    "{": "left_curly_bracket",
+    "}": "right_curly_bracket",
+    '"': "quotation_mark",
+    ",": "comma",
+    "\n": "enter",
+}
 
 
 @pytest.fixture

@@ -38,17 +38,18 @@ from kp9.store import (
     slugify,
 )
 from kp9.tui import editor
+from kp9.tui.request_editor import RequestEditorScreen
 from kp9.tui.views.base import View
 from kp9.tui.views.detail import DetailView
 from kp9.tui.views.envs import EnvsView
 from kp9.tui.views.groups import CollectionsView, GroupsView
 from kp9.tui.views.history import HistoryView
 from kp9.tui.views.requests import RequestsView
+from kp9.tui.views.tree import TreeView
 from kp9.tui.widgets import ConfirmScreen, HelpScreen
+from kp9.variables import VariableInfo
 
-SHORTCUTS = (
-    "<1> grupos  <2> colecciones  <E> env  <h> historial  <:> comando  </> filtro  <?> ayuda"
-)
+SHORTCUTS = "<1> grupos  <2> colecciones  <E> env  <t> árbol  <h> historial  <:> comando  </> filtro  <?> ayuda"
 
 
 def _relevant_change(change: Change, path: str) -> bool:
@@ -64,6 +65,7 @@ class Kp9App(App[None]):
         Binding("2", "goto_collections", "colecciones"),
         Binding("E", "goto_envs", "entornos"),
         Binding("h", "goto_history", "historial"),
+        Binding("t", "goto_tree", "árbol"),
         Binding("colon", "prompt(':')", "comando"),
         Binding("slash", "prompt('/')", "filtrar"),
         Binding("question_mark", "help", "ayuda"),
@@ -225,7 +227,7 @@ class Kp9App(App[None]):
     # ---- prompt y comandos ----------------------------------------------
 
     def _command_suggestions(self) -> list[str]:
-        out = ["groups", "history", "env", "import ", "q"]
+        out = ["groups", "tree", "history", "env", "import ", "q"]
         out += [f"env {name}" for name in sorted(self.workspace.environments)]
         out += [f"col {c.path.name}" for g in self.workspace.groups for c in g.children]
         return out
@@ -285,6 +287,8 @@ class Kp9App(App[None]):
             self.action_goto_groups()
         elif command == "history":
             self.action_goto_history()
+        elif command == "tree":
+            self.action_goto_tree()
         elif command == "env":
             if arg:
                 self.set_env(arg)
@@ -314,6 +318,27 @@ class Kp9App(App[None]):
         self.push_view(DetailView(path, autosend=True))
 
     # ---- archivos -------------------------------------------------------
+
+    def open_request_editor(self, path: Path) -> None:
+        """Editor integrado (con autocompletado de {{variables}}) para un request."""
+        node = self.workspace.node_at(path)
+        if not isinstance(node, RequestNode) or node.request is None:
+            message = node.error if isinstance(node, RequestNode) and node.error else None
+            self.notify(message or "selecciona un request para editarlo", severity="warning")
+            return
+
+        def variables() -> list[VariableInfo]:
+            current = self.workspace.node_at(path)
+            return self.runner.variables_for(
+                current if isinstance(current, RequestNode) else node, self.env_name
+            )
+
+        def saved(ok: bool | None) -> None:
+            if ok:
+                self.reload_workspace()
+                self.notify(f"guardado: {self.rel(path)}")
+
+        self.push_screen(RequestEditorScreen(path, node.request, variables), saved)
 
     def edit_file(self, path: Path) -> None:
         try:
@@ -390,6 +415,9 @@ class Kp9App(App[None]):
 
     def action_goto_history(self) -> None:
         self.push_view(HistoryView())
+
+    def action_goto_tree(self) -> None:
+        self.push_view(TreeView())
 
     def action_help(self) -> None:
         self.push_screen(HelpScreen())

@@ -18,6 +18,7 @@ from kp9.redact import Redactor
 from kp9.resolve import ResolvedRequest, resolve
 from kp9.secrets import SecretsError, env_values, load_secrets, sensitive_values
 from kp9.store import RequestNode, Workspace
+from kp9.variables import VariableInfo, available_variables
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 CANCELLED = "cancelado"
@@ -67,6 +68,14 @@ class Runner:
     def redactor(self, env_name: str | None) -> Redactor:
         _, sensitive = self._values(env_name)
         return Redactor(sensitive, self.workspace.config.redactHeaders)
+
+    def variables_for(self, node: RequestNode, env_name: str | None) -> list[VariableInfo]:
+        """Variables disponibles para el request (para autocompletar). Nunca falla."""
+        try:
+            secrets = load_secrets(self.workspace.root)
+        except SecretsError:
+            secrets = {}
+        return available_variables(node.chain, self.environment(env_name), secrets, self._environ)
 
     def prepare(self, node: RequestNode, env_name: str | None) -> ResolvedRequest:
         if node.request is None:

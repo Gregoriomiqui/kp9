@@ -38,6 +38,7 @@ class DetailView(View):
         Binding("c", "copy_curl", "copiar curl"),
         Binding("y", "copy_body", "copiar body"),
         Binding("e", "edit", "editar"),
+        Binding("i", "form_edit", "editor"),
     ]
 
     def __init__(self, request_path: Path, *, autosend: bool = False) -> None:
@@ -168,6 +169,9 @@ class DetailView(View):
         return False
 
     # ---- copiar ---------------------------------------------------------
+
+    def action_form_edit(self) -> None:
+        self.kp9.open_request_editor(self.request_path)
 
     def action_edit(self) -> None:
         self.kp9.edit_file(self.request_path)

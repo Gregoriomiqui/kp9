@@ -10,6 +10,8 @@ que no se versiona.
 - Jerarquía **Grupo → Colección → Carpeta → Request**.
 - Entornos con variables `{{var}}`, secretos fuera del repo y entornos protegidos.
 - Auth: Bearer, Basic, API Key y OAuth2 client credentials (con caché del token).
+- Árbol de colecciones como la barra lateral de Postman, con teclado y ratón.
+- Editor integrado de requests con autocompletado de `{{variables}}`, como en Postman.
 - Historial navegable y re-ejecutable. Los datos sensibles se ocultan antes de guardarse.
 - Importación de colecciones y entornos de Postman v2.1.
 
@@ -63,7 +65,8 @@ kp9
 
 Eso es todo. La primera vez se crea el workspace por defecto en `~/kp9` y se abre la app. Con
 `n` creas un grupo; con `Enter` entras en él y con `n` creas una colección, y dentro de ella un
-request. Con `e` lo editas y con `s` lo envías.
+request. Con `i` lo editas dentro de kp9 (escribe `{{` para ver las variables), con `e` lo
+abres en tu `$EDITOR` y con `s` lo envías. Con `t` ves todo como árbol.
 
 Para traer tus colecciones de Postman:
 
@@ -123,6 +126,7 @@ Si el entorno activo es protegido, la barra superior se pone roja.
 | `Esc` | Volver, o cancelar el request en curso |
 | `1` / `2` | Ir a grupos / colecciones |
 | `E` | Entornos |
+| `t` | Árbol de colecciones (ver abajo) |
 | `h` | Historial |
 | `:` | Barra de comandos (con autocompletado) |
 | `/` | Filtrar la tabla, o el body de la respuesta en el detalle |
@@ -130,8 +134,38 @@ Si el entorno activo es protegido, la barra superior se pone roja.
 | `c` | Copiar el request como `curl` |
 | `y` | Copiar el body de la respuesta |
 | `r` | Re-ejecutar (en el historial) |
+| `i` | Editor integrado del request, con autocompletado de `{{variables}}` (ver abajo) |
 | `n` / `e` / `d` | Crear / editar / borrar (pide confirmación). Con `n`, un nombre que termina en `/` crea una carpeta |
 | `?` | Ayuda |
+
+### Árbol de colecciones
+
+`t` (o `:tree`) muestra todo el workspace como la barra lateral de Postman:
+
+```
+▼ Pagos
+  ▼ Checkout API
+    ▼ carrito
+        POST Agregar al carrito
+        GET  Ver carrito
+      GET  Buscar
+▶ Usuarios
+```
+
+| Tecla / ratón | Acción |
+|---|---|
+| `↑` `↓` o `j` `k` | Moverse |
+| `→` o `l` | Desplegar |
+| `←` o `h` | Plegar; sobre un nodo ya plegado, sube al padre |
+| `Enter` o clic | En un request: abrirlo. En un grupo, colección o carpeta: plegar o desplegar |
+| `Espacio` | Plegar o desplegar |
+| `/` | Filtrar por nombre de request (muestra las coincidencias con sus carpetas) |
+| `i` | Abrir el request seleccionado en el editor integrado |
+| `e` | Editar el elemento seleccionado en `$EDITOR` |
+| `Esc` | Quitar el filtro, o volver |
+
+Al volver desde un request (`Esc`), el árbol queda como estaba: mismos nodos plegados y el
+cursor en el mismo lugar. Si los archivos cambian, el árbol se recarga y conserva ese estado.
 
 ### Comandos `:`
 
@@ -140,9 +174,46 @@ Si el entorno activo es protegido, la barra superior se pone roja.
 | `:groups` | Ir a grupos |
 | `:col <nombre>` | Abrir una colección |
 | `:env <nombre>` | Activar un entorno |
+| `:tree` | Abrir el árbol de colecciones |
 | `:history` | Ir al historial |
 | `:import <archivo>` | Importar una colección o un entorno de Postman al grupo actual |
 | `:q` | Salir |
+
+### Editor integrado y autocompletado de variables
+
+`i`, desde el detalle de un request, la lista de requests o el árbol, abre un editor dentro de
+kp9 con el método, la URL, los params, los headers, el tipo de body y el body.
+
+Al escribir `{{` en cualquier campo aparece la lista de variables disponibles para ese
+request, como en Postman:
+
+```
+URL  {{baseUrl}}/v1/cart/{{s█
+                         ┌──────────────────────────────────────┐
+                         │ sku        SKU-1           env qa     │
+                         │ sessionId  ••••            env qa     │
+                         └──────────────────────────────────────┘
+```
+
+- Cada variable muestra su valor y la capa de donde viene (env, carpeta, colección o grupo),
+  según la misma precedencia que se usa al enviar. Los secretos aparecen como `••••`.
+- Al seguir escribiendo se filtra la lista: primero las que empiezan con lo escrito, después
+  las que lo contienen.
+- `↑`/`↓` eligen, `Tab` o `Enter` insertan `nombre}}` (sin duplicar `}}` si ya estaba) y
+  `Esc` cierra la lista.
+
+Formato de los campos:
+
+- **Params y headers:** uno por línea, `nombre: valor`. Las líneas vacías y las que empiezan
+  con `#` se ignoran.
+- **Body:** según el tipo. `json` es JSON tal cual. En `form-urlencoded` y `multipart`, un
+  objeto JSON `{"campo": "valor"}`, y en `multipart` un valor `"@~/ruta"` sube ese archivo.
+  `text` va tal cual.
+
+`Ctrl+S` guarda. Si algo no es válido, por ejemplo un JSON mal formado, el editor muestra el
+error con línea y columna y no guarda. `Esc` cierra el editor y, si hay cambios sin guardar,
+pregunta antes de descartarlos. El nombre, la descripción y el auth del request se conservan;
+para cambiarlos, usa `e`.
 
 ### Edición
 
@@ -294,6 +365,7 @@ guardar, kp9 oculta (`••••`):
 | `{{baseUrl}} no definida (sin entorno activo)` | Activa un entorno con `E` + `Enter` o `:env <nombre>`, o define `defaultEnv` en `workspace.json` |
 | `{{x}} no definida en qa` | Agrega la variable al entorno. Si es un secreto, pon su valor en `.kp9/secrets.json` |
 | Un archivo aparece con ⚠ | Su JSON es inválido. El mensaje indica archivo:línea:columna; `e` lo abre para corregirlo |
+| Al escribir `{{` no aparece la lista | Solo aparece si hay variables para ese request. Activa un entorno (`E` + `Enter`) o define variables en el grupo, la colección o la carpeta. La lista funciona en el editor integrado (`i`), no en `$EDITOR` |
 | `Request URL is missing an 'http://' or 'https://' protocol` | La URL resuelta no empieza con `http://` o `https://`. Revisa la URL o el valor de `baseUrl` en el entorno. Los espacios al inicio y al final se quitan solos |
 
 ## Desarrollo
@@ -310,8 +382,9 @@ entrada para PyInstaller. Los artefactos quedan en `dist/` y los intermedios en 
 dos carpetas están ignoradas por git.
 
 El código está en `src/kp9/`. El núcleo (`model`, `store`, `resolve`, `auth`, `httpclient`,
-`history`, `runner`, `importer`) no depende de la interfaz. La TUI, en `src/kp9/tui/`, es una
-capa delgada encima del núcleo.
+`history`, `runner`, `importer`, `variables`, `form`) no depende de la interfaz. La TUI, en `src/kp9/tui/`, es una
+capa delgada encima del núcleo; el editor integrado está en `request_editor.py` y el
+autocompletado en `completion.py`.
 
 El diseño está en `docs/superpowers/specs/` y el plan de implementación en
 `docs/superpowers/plans/`.

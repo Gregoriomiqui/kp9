@@ -80,3 +80,61 @@ ConfirmScreen, NameScreen, HelpScreen {
     border: thick #ffb000;
     background: #1b2b4b;
 }
+
+RequestEditorScreen {
+    align: center middle;
+}
+
+#editor {
+    width: 100%;
+    height: 100%;
+    padding: 0 1;
+    border: thick #ffb000;
+    background: #0b1021;
+}
+
+#editor-line, #editor-body-line {
+    height: auto;
+}
+
+#editor-method, #editor-body-type {
+    width: 16;
+}
+
+#editor-url {
+    width: 1fr;
+}
+
+.editor-label {
+    width: auto;
+    padding: 1 1 0 0;
+    color: #ffb000;
+}
+
+.editor-pairs {
+    height: 5;
+}
+
+#editor-body {
+    height: 1fr;
+}
+
+#editor-error {
+    height: auto;
+}
+
+#editor-hint {
+    height: 1;
+}
+
+#var-suggestions {
+    overlay: screen;
+    position: absolute;
+    constrain: inside inside;
+    width: auto;
+    min-width: 30;
+    max-width: 100;
+    border: round #00b7eb;
+    background: #1b2b4b;
+    padding: 0;
+}
