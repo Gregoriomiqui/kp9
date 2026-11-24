@@ -11,7 +11,7 @@ import httpx
 from rich.text import Text
 from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.suggester import SuggestFromList
 from textual.widgets import Input, Static
 from watchfiles import Change, awatch
@@ -32,6 +32,7 @@ from kp9.store import (
     ContainerNode,
     RequestNode,
     WorkspaceNotFound,
+    group_dir_of,
     load_workspace,
     model_for_file,
     read_model,
@@ -49,7 +50,7 @@ from kp9.tui.views.tree import TreeView
 from kp9.tui.widgets import ConfirmScreen, HelpScreen
 from kp9.variables import VariableInfo
 
-SHORTCUTS = "<1> grupos  <2> colecciones  <E> env  <t> árbol  <h> historial  <:> comando  </> filtro  <?> ayuda"
+SHORTCUTS = "<1> grupos  <2> colecciones  <E> env  <t> árbol  <ctrl+b> ocultar  <h> historial  <:> comando  </> filtro  <?> ayuda"
 
 
 def _relevant_change(change: Change, path: str) -> bool:
@@ -66,6 +67,7 @@ class Kp9App(App[None]):
         Binding("E", "goto_envs", "entornos"),
         Binding("h", "goto_history", "historial"),
         Binding("t", "goto_tree", "árbol"),
+        Binding("ctrl+b", "toggle_sidebar", "mostrar/ocultar árbol"),
         Binding("colon", "prompt(':')", "comando"),
         Binding("slash", "prompt('/')", "filtrar"),
         Binding("question_mark", "help", "ayuda"),
@@ -93,11 +95,14 @@ class Kp9App(App[None]):
         self._stack: list[View] = []
         self._last_group: Path | None = None
         self._prompt_mode: str | None = None
+        self._filter_target: View | None = None
         self._watch = watch
 
     def compose(self) -> ComposeResult:
         yield Static(id="topbar")
-        yield Vertical(id="body")
+        with Horizontal(id="main"):
+            yield TreeView(id="sidebar")
+            yield Vertical(id="body")
         yield Input(id="prompt")
         yield Static(id="crumbs")
 
@@ -124,11 +129,22 @@ class Kp9App(App[None]):
     def stack(self) -> tuple[View, ...]:
         return tuple(self._stack)
 
+    @property
+    def sidebar(self) -> TreeView:
+        return self.query_one("#sidebar", TreeView)
+
+    @property
+    def sidebar_focused(self) -> bool:
+        sidebar = self.sidebar
+        return sidebar.display and sidebar.has_focus_within
+
     def push_view(self, view: View) -> None:
         if self._stack:
             self._stack[-1].display = False
         self._stack.append(view)
         self.query_one("#body", Vertical).mount(view)
+        if isinstance(view, DetailView) and not self.sidebar_focused:
+            self.sidebar.move_cursor_to(view.request_path)
         self.refresh_chrome()
 
     def pop_view(self) -> bool:
@@ -222,6 +238,7 @@ class Kp9App(App[None]):
             self.env_name = None
         for view in self._stack:
             view.reload()
+        self.sidebar.reload()
         self.refresh_chrome()
 
     # ---- prompt y comandos ----------------------------------------------
@@ -235,6 +252,7 @@ class Kp9App(App[None]):
     def action_prompt(self, mode: str) -> None:
         prompt = self.query_one("#prompt", Input)
         self._prompt_mode = mode
+        self._filter_target = self.sidebar if self.sidebar_focused else self.current
         prompt.suggester = (
             SuggestFromList(self._command_suggestions(), case_sensitive=False)
             if mode == ":"
@@ -250,23 +268,25 @@ class Kp9App(App[None]):
         prompt = self.query_one("#prompt", Input)
         prompt.value = ""
         prompt.display = False
-        if self.current is not None:
-            self.current.focus_default()
+        target = self._filter_target or self.current
+        if target is not None:
+            target.focus_default()
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id == "prompt" and self._prompt_mode == "/" and self.current is not None:
-            self.current.apply_filter(event.value)
+        target = self._filter_target
+        if event.input.id == "prompt" and self._prompt_mode == "/" and target is not None:
+            target.apply_filter(event.value)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id != "prompt":
             return
         event.stop()
-        mode, value = self._prompt_mode, event.value
+        mode, value, target = self._prompt_mode, event.value, self._filter_target
         self.close_prompt()
         if mode == ":":
             self.run_command(value)
-        elif mode == "/" and self.current is not None:
-            self.current.apply_filter(value)
+        elif mode == "/" and target is not None:
+            target.apply_filter(value)
 
     def _find_collection(self, name: str) -> ContainerNode | None:
         needle = name.strip().lower()
@@ -316,6 +336,16 @@ class Kp9App(App[None]):
         if entry.env != self.env_name:
             self.notify(f"se re-ejecuta con el entorno activo ({self.env_name or 'ninguno'})")
         self.push_view(DetailView(path, autosend=True))
+
+    def open_request(self, path: Path) -> None:
+        """Abre un request desde el árbol: grupos > colección > carpetas > detalle."""
+        group = group_dir_of(self.root, path)
+        if group is None:
+            return
+        views: list[View] = [GroupsView(), CollectionsView(group)]
+        containers = [p for p in reversed(path.parents) if group in p.parents]
+        views += [RequestsView(p) for p in containers]
+        self.reset_to(*views, DetailView(path))
 
     # ---- archivos -------------------------------------------------------
 
@@ -417,7 +447,30 @@ class Kp9App(App[None]):
         self.push_view(HistoryView())
 
     def action_goto_tree(self) -> None:
-        self.push_view(TreeView())
+        """Muestra y enfoca el árbol; si ya tenía el foco, lo oculta."""
+        sidebar = self.sidebar
+        if self.sidebar_focused:
+            self.hide_sidebar()
+            return
+        sidebar.display = True
+        sidebar.focus_default()
+
+    def action_toggle_sidebar(self) -> None:
+        if self.sidebar.display:
+            self.hide_sidebar()
+        else:
+            self.sidebar.display = True
+            self.sidebar.focus_default()
+
+    def hide_sidebar(self) -> None:
+        focused = self.sidebar_focused
+        self.sidebar.display = False
+        if focused and self.current is not None:
+            self.current.focus_default()
+
+    def focus_main(self) -> None:
+        if self.current is not None:
+            self.current.focus_default()
 
     def action_help(self) -> None:
         self.push_screen(HelpScreen())
@@ -438,6 +491,12 @@ class Kp9App(App[None]):
     async def action_back(self) -> None:
         if self.query_one("#prompt", Input).display:
             self.close_prompt()
+            return
+        if self.sidebar_focused:
+            if self.sidebar.has_filter:
+                self.sidebar.apply_filter("")
+            else:
+                self.focus_main()
             return
         view = self.current
         if view is None:

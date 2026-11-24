@@ -1,4 +1,4 @@
-"""Vista de árbol: Grupo → Colección → Carpeta → Request, como la barra lateral de Postman."""
+"""Árbol Grupo → Colección → Carpeta → Request: el sidebar ocultable, como en Postman."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from textual.widgets.tree import TreeNode
 
 from kp9.store import ContainerNode, RequestNode, group_dir_of
 from kp9.tui.views.base import View
-from kp9.tui.views.detail import DetailView
 from kp9.tui.widgets import mark, method_text
 
 Node = TreeNode[Path]
@@ -46,8 +45,8 @@ class TreeView(View):
         Binding("i", "form_edit", "editor"),
     ]
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *, id: str | None = None) -> None:
+        super().__init__(id=id)
         self._filter = ""
         self._collapsed: set[Path] = set()
 
@@ -171,7 +170,7 @@ class TreeView(View):
         event.stop()
         path = event.node.data
         if path is not None and isinstance(self.kp9.workspace.node_at(path), RequestNode):
-            self.kp9.push_view(DetailView(path))
+            self.kp9.open_request(path)
 
     def action_expand(self) -> None:
         node = self.tree_widget.cursor_node

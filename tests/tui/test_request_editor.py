@@ -4,7 +4,6 @@ from kp9.redact import MASK
 from kp9.tui.request_editor import RequestEditorScreen
 from kp9.tui.views.detail import DetailView
 from kp9.tui.views.requests import RequestsView
-from kp9.tui.views.tree import TreeView
 from kp9.tui.widgets import ConfirmScreen
 
 SIZE = (120, 45)
@@ -197,9 +196,9 @@ async def test_i_from_requests_list_and_tree(make_app, sample_ws):
         assert app.screen.request_path == sample_ws / CARRITO / "agregar-al-carrito.json"
         app.pop_screen()
         await pilot.pause()
-        app.push_view(TreeView())
+        await pilot.press("t")
         await pilot.pause()
-        app.current.move_cursor_to(sample_ws / CARRITO / "ver-carrito.json")
+        app.sidebar.move_cursor_to(sample_ws / CARRITO / "ver-carrito.json")
         await pilot.press("i")
         await pilot.pause()
         assert isinstance(app.screen, RequestEditorScreen)

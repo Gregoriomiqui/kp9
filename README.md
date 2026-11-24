@@ -10,7 +10,7 @@ que no se versiona.
 - Jerarquía **Grupo → Colección → Carpeta → Request**.
 - Entornos con variables `{{var}}`, secretos fuera del repo y entornos protegidos.
 - Auth: Bearer, Basic, API Key y OAuth2 client credentials (con caché del token).
-- Árbol de colecciones como la barra lateral de Postman, con teclado y ratón.
+- Árbol de colecciones en un sidebar ocultable, como en Postman, con teclado y ratón.
 - Editor integrado de requests con autocompletado de `{{variables}}`, como en Postman.
 - Historial navegable y re-ejecutable. Los datos sensibles se ocultan antes de guardarse.
 - Importación de colecciones y entornos de Postman v2.1.
@@ -66,7 +66,7 @@ kp9
 Eso es todo. La primera vez se crea el workspace por defecto en `~/kp9` y se abre la app. Con
 `n` creas un grupo; con `Enter` entras en él y con `n` creas una colección, y dentro de ella un
 request. Con `i` lo editas dentro de kp9 (escribe `{{` para ver las variables), con `e` lo
-abres en tu `$EDITOR` y con `s` lo envías. Con `t` ves todo como árbol.
+abres en tu `$EDITOR` y con `s` lo envías. El árbol de la izquierda muestra todo el workspace; `t` lo enfoca.
 
 Para traer tus colecciones de Postman:
 
@@ -105,18 +105,22 @@ Para abrir un workspace concreto desde cualquier lugar: `kp9 --workspace /ruta/a
 ## Uso de la TUI
 
 ```
-┌ Workspace: mis-apis        Env: <qa>   Grupo: pagos ──────────────────┐
-│ <1> grupos  <2> colecciones  <E> env  <h> historial  <?> ayuda        │
-├─ Requests(pagos/checkout-api/carrito)[3] ─────────────────────────────┤
-│ METHOD  NAME                URL                         LAST          │
-│ POST    Agregar al carrito  {{baseUrl}}/v1/cart/items   201 · 120ms   │
-│ GET     Ver carrito         {{baseUrl}}/v1/cart         200 ·  85ms   │
-├───────────────────────────────────────────────────────────────────────┤
-│ <grupos> <checkout-api> <carrito>                                     │
-└───────────────────────────────────────────────────────────────────────┘
+┌ Workspace: mis-apis        Env: <qa>   Grupo: pagos ───────────────────────────────────┐
+│ <1> grupos  <2> colecciones  <E> env  <t> árbol  <ctrl+b> ocultar  <?> ayuda           │
+├─ Árbol ───────────────────┬─ Requests(pagos/checkout-api/carrito)[2] ──────────────────┤
+│ ▼ Pagos                   │ METHOD  NAME                URL                       LAST │
+│   ▼ Checkout API          │ POST    Agregar al carrito  {{baseUrl}}/v1/cart/items 201  │
+│     ▼ carrito             │ GET     Ver carrito         {{baseUrl}}/v1/cart       200  │
+│         POST Agregar al…  │                                                            │
+│         GET  Ver carrito  │                                                            │
+│       GET  Buscar         │                                                            │
+├───────────────────────────┴────────────────────────────────────────────────────────────┤
+│ <grupos> <checkout-api> <carrito>                                                      │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Si el entorno activo es protegido, la barra superior se pone roja.
+Si el entorno activo es protegido, la barra superior se pone roja. El panel que tiene el foco
+se marca con borde ámbar.
 
 ### Teclas
 
@@ -126,7 +130,8 @@ Si el entorno activo es protegido, la barra superior se pone roja.
 | `Esc` | Volver, o cancelar el request en curso |
 | `1` / `2` | Ir a grupos / colecciones |
 | `E` | Entornos |
-| `t` | Árbol de colecciones (ver abajo) |
+| `t` | Ir al árbol lateral; si ya tiene el foco, lo oculta (ver abajo) |
+| `Ctrl-B` | Mostrar u ocultar el árbol lateral |
 | `h` | Historial |
 | `:` | Barra de comandos (con autocompletado) |
 | `/` | Filtrar la tabla, o el body de la respuesta en el detalle |
@@ -138,9 +143,16 @@ Si el entorno activo es protegido, la barra superior se pone roja.
 | `n` / `e` / `d` | Crear / editar / borrar (pide confirmación). Con `n`, un nombre que termina en `/` crea una carpeta |
 | `?` | Ayuda |
 
-### Árbol de colecciones
+### Árbol de colecciones (sidebar)
 
-`t` (o `:tree`) muestra todo el workspace como la barra lateral de Postman:
+A la izquierda siempre está el árbol con todo el workspace, como la barra lateral de Postman.
+Se puede ocultar para dejarle toda la pantalla a la vista principal:
+
+- `t` (o `:tree`) mueve el foco al árbol y lo muestra si estaba oculto. Si el árbol ya tiene el
+  foco, `t` lo oculta.
+- `Ctrl-B` lo muestra u oculta en cualquier momento.
+- `Esc` en el árbol devuelve el foco a la vista principal (o quita el filtro, si hay uno).
+
 
 ```
 ▼ Pagos
@@ -157,15 +169,17 @@ Si el entorno activo es protegido, la barra superior se pone roja.
 | `↑` `↓` o `j` `k` | Moverse |
 | `→` o `l` | Desplegar |
 | `←` o `h` | Plegar; sobre un nodo ya plegado, sube al padre |
-| `Enter` o clic | En un request: abrirlo. En un grupo, colección o carpeta: plegar o desplegar |
+| `Enter` o clic | En un request: abrirlo en la vista principal. En un grupo, colección o carpeta: plegar o desplegar |
 | `Espacio` | Plegar o desplegar |
-| `/` | Filtrar por nombre de request (muestra las coincidencias con sus carpetas) |
+| `/` | Con el foco en el árbol: filtrar por nombre de request (muestra las coincidencias con sus carpetas) |
 | `i` | Abrir el request seleccionado en el editor integrado |
 | `e` | Editar el elemento seleccionado en `$EDITOR` |
-| `Esc` | Quitar el filtro, o volver |
+| `Esc` | Quitar el filtro, o volver a la vista principal |
 
-Al volver desde un request (`Esc`), el árbol queda como estaba: mismos nodos plegados y el
-cursor en el mismo lugar. Si los archivos cambian, el árbol se recarga y conserva ese estado.
+Al abrir un request desde el árbol, la vista principal queda en grupos > colección > carpetas >
+detalle, así que `Esc` sube por esa ruta. Si abres un request desde la tabla, el cursor del árbol
+se mueve a ese request. Si los archivos cambian, el árbol se recarga y conserva los nodos
+plegados y la posición del cursor.
 
 ### Comandos `:`
 

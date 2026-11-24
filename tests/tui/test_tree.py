@@ -1,6 +1,8 @@
 import json
 
 from kp9.tui.views.detail import DetailView
+from kp9.tui.views.groups import CollectionsView, GroupsView
+from kp9.tui.views.requests import RequestsView
 from kp9.tui.views.tree import TreeView
 
 SIZE = (120, 40)
@@ -19,8 +21,9 @@ FULL = [
 async def open_tree(app, pilot):
     await pilot.press("t")
     await pilot.pause()
-    view = app.current
+    view = app.sidebar
     assert isinstance(view, TreeView)
+    assert app.sidebar_focused
     return view
 
 
@@ -29,7 +32,8 @@ async def test_t_opens_tree_with_full_hierarchy(make_app):
     async with app.run_test(size=SIZE) as pilot:
         view = await open_tree(app, pilot)
         assert view.visible_lines() == FULL
-        assert app.crumbs_text == "<grupos> <árbol>"
+        assert view.display
+        assert isinstance(app.current, GroupsView)  # el árbol no entra en la pila
 
 
 async def test_tree_command(make_app, type_keys):
@@ -38,7 +42,7 @@ async def test_tree_command(make_app, type_keys):
         await type_keys(pilot, ":tree")
         await pilot.press("enter")
         await pilot.pause()
-        assert isinstance(app.current, TreeView)
+        assert app.sidebar_focused
 
 
 async def test_enter_on_request_opens_detail_and_esc_returns(make_app, sample_ws):
@@ -50,9 +54,18 @@ async def test_enter_on_request_opens_detail_and_esc_returns(make_app, sample_ws
         await pilot.pause()
         assert isinstance(app.current, DetailView)
         assert app.current.request_path == sample_ws / COL / "carrito" / "ver-carrito.json"
+        assert [type(v) for v in app.stack] == [
+            GroupsView,
+            CollectionsView,
+            RequestsView,
+            RequestsView,
+            DetailView,
+        ]
+        assert app.focused is app.current
         await pilot.press("escape")
         await pilot.pause()
-        assert app.current is view
+        assert isinstance(app.current, RequestsView)
+        assert app.current.container_path == sample_ws / COL / "carrito"
         assert view.cursor_path() == sample_ws / COL / "carrito" / "ver-carrito.json"
 
 
@@ -175,3 +188,67 @@ async def test_click_on_folder_toggles_it(make_app, sample_ws):
         assert "      GET  Ver carrito" not in view.visible_lines()
         await click_line(pilot, view, FULL.index("    carrito"))
         assert "      GET  Ver carrito" in view.visible_lines()
+
+
+async def test_sidebar_visible_by_default(make_app):
+    app = make_app()
+    async with app.run_test(size=SIZE) as pilot:
+        await pilot.pause()
+        assert app.sidebar.display
+        assert app.sidebar.visible_lines() == FULL
+        assert app.focused is app.current.table
+
+
+async def test_t_on_focused_sidebar_hides_it_and_t_shows_it_again(make_app):
+    app = make_app()
+    async with app.run_test(size=SIZE) as pilot:
+        await open_tree(app, pilot)
+        await pilot.press("t")
+        await pilot.pause()
+        assert not app.sidebar.display
+        assert not app.sidebar_focused
+        assert app.focused is app.current.table
+        await pilot.press("t")
+        await pilot.pause()
+        assert app.sidebar.display and app.sidebar_focused
+
+
+async def test_ctrl_b_toggles_sidebar(make_app):
+    app = make_app()
+    async with app.run_test(size=SIZE) as pilot:
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+        assert not app.sidebar.display
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+        assert app.sidebar.display and app.sidebar_focused
+
+
+async def test_esc_in_sidebar_returns_focus_to_main(make_app):
+    app = make_app()
+    async with app.run_test(size=SIZE) as pilot:
+        await open_tree(app, pilot)
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not app.sidebar_focused
+        assert app.sidebar.display
+        assert isinstance(app.current, GroupsView)
+
+
+async def test_filter_in_main_view_does_not_touch_sidebar(make_app, type_keys):
+    app = make_app()
+    async with app.run_test(size=SIZE) as pilot:
+        await type_keys(pilot, "/zzz")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.current.has_filter
+        assert not app.sidebar.has_filter
+        assert app.sidebar.visible_lines() == FULL
+
+
+async def test_opening_request_elsewhere_moves_sidebar_cursor(make_app, sample_ws):
+    app = make_app()
+    async with app.run_test(size=SIZE) as pilot:
+        app.push_view(DetailView(sample_ws / COL / "buscar.json"))
+        await pilot.pause()
+        assert app.sidebar.cursor_path() == sample_ws / COL / "buscar.json"

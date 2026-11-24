@@ -16,8 +16,23 @@ Screen {
     color: #ffffff;
 }
 
-#body {
+#main {
     height: 1fr;
+}
+
+#body {
+    width: 1fr;
+    height: 1fr;
+}
+
+#sidebar {
+    width: 38;
+    max-width: 45%;
+    height: 1fr;
+}
+
+#sidebar:focus-within {
+    border: round #ffb000;
 }
 
 View {
